@@ -20,6 +20,9 @@ import android.util.Log;
 import android.content.pm.PackageManager;
 
 import org.apache.cordova.CordovaPlugin;
+
+import javax.security.auth.callback.Callback;
+
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.PluginResult;
 import org.apache.cordova.PermissionHelper;
@@ -28,12 +31,16 @@ import com.google.zxing.client.android.CaptureActivity;
 import com.google.zxing.client.android.encode.EncodeActivity;
 import com.google.zxing.client.android.Intents;
 
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
+import android.widget.FrameLayout;
+
 /**
  * This calls out to the ZXing barcode reader and returns the result.
  *
  * @sa https://github.com/apache/cordova-android/blob/master/framework/src/org/apache/cordova/CordovaPlugin.java
  */
-public class BarcodeScanner extends CordovaPlugin {
+public class BarcodeScanner extends CordovaPlugin implements CameraPreview.BarcodeScanInterface {
     public static final int REQUEST_CODE = 0x0ba7c;
 
     private static final String SCAN = "scan";
@@ -64,6 +71,12 @@ public class BarcodeScanner extends CordovaPlugin {
 
     private JSONArray requestArgs;
     private CallbackContext callbackContext;
+
+    private CameraPreview cameraPreview;
+
+    private CallbackContext startCameraCallback;
+    private static final String STARTCAMERASCAN = "startCameraScan";
+    private int containerViewId = 20;
 
     /**
      * Constructor.
@@ -121,6 +134,12 @@ public class BarcodeScanner extends CordovaPlugin {
             } else {
               scan(args);
             }
+        } else if(action.equals(STARTCAMERASCAN)) {
+            if(!hasPermisssion()) {
+                requestPermissions(0);
+              } else {
+                startCameraScan(callbackContext);
+              }
         } else {
             return false;
         }
@@ -204,6 +223,31 @@ public class BarcodeScanner extends CordovaPlugin {
                 that.cordova.startActivityForResult(that, intentScan, REQUEST_CODE);
             }
         });
+    }
+
+    public void startCameraScan(CallbackContext callback) {
+        this.startCameraCallback = callback;
+        FrameLayout containerView = (FrameLayout) cordova.getActivity().findViewById(containerViewId);
+
+        if(containerView == null){
+            containerView = new FrameLayout(cordova.getActivity().getApplicationContext());
+            containerView.setId(containerViewId);
+
+            FrameLayout.LayoutParams containerLayoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+            cordova.getActivity().addContentView(containerView, containerLayoutParams);
+        }
+
+        cameraPreview = new CameraPreview();
+        FragmentManager fragmentManager = cordova.getActivity().getSupportFragmentManager();
+        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+        fragmentTransaction.add(containerView.getId(), cameraPreview);
+        fragmentTransaction.addToBackStack(null);
+        fragmentTransaction.commit();
+    }
+
+    @Override
+    public void onBarcodeScanned(String barcodeData) {
+        this.startCameraCallback.success(barcodeData);
     }
 
     /**
