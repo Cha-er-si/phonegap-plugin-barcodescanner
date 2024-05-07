@@ -18,6 +18,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.content.pm.PackageManager;
+import android.content.Intent;
 
 import org.apache.cordova.CordovaPlugin;
 
@@ -27,13 +28,25 @@ import org.apache.cordova.CallbackContext;
 import org.apache.cordova.PluginResult;
 import org.apache.cordova.PermissionHelper;
 
-import com.google.zxing.client.android.CaptureActivity;
-import com.google.zxing.client.android.encode.EncodeActivity;
+// import com.google.zxing.client.android.CaptureActivity;
+import com.journeyapps.barcodescanner.CaptureActivity;
+import com.phonegap.plugins.barcodescanner.CameraPreview.BarcodeScanInterface;
+// import com.google.zxing.client.android.encode.EncodeActivity;
 import com.google.zxing.client.android.Intents;
 
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 import android.widget.FrameLayout;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.google.zxing.common.BitMatrix;
+import com.journeyapps.barcodescanner.BarcodeEncoder;
+import com.google.zxing.WriterException;
+import android.view.View;
+import android.view.ViewParent;
+import android.view.ViewGroup;
+import androidx.annotation.ColorInt;
 
 /**
  * This calls out to the ZXing barcode reader and returns the result.
@@ -77,6 +90,7 @@ public class BarcodeScanner extends CordovaPlugin implements CameraPreview.Barco
     private CallbackContext startCameraCallback;
     private static final String STARTCAMERASCAN = "startCameraScan";
     private int containerViewId = 20;
+    private ViewParent webViewParent;
 
     /**
      * Constructor.
@@ -136,7 +150,7 @@ public class BarcodeScanner extends CordovaPlugin implements CameraPreview.Barco
             }
         } else if(action.equals(STARTCAMERASCAN)) {
             if(!hasPermisssion()) {
-                requestPermissions(0);
+                requestPermissions(1);
               } else {
                 startCameraScan(callbackContext);
               }
@@ -195,14 +209,14 @@ public class BarcodeScanner extends CordovaPlugin implements CameraPreview.Barco
                         }
 
                         intentScan.putExtra(Intents.Scan.CAMERA_ID, obj.optBoolean(PREFER_FRONTCAMERA, false) ? 1 : 0);
-                        intentScan.putExtra(Intents.Scan.SHOW_FLIP_CAMERA_BUTTON, obj.optBoolean(SHOW_FLIP_CAMERA_BUTTON, false));
-                        intentScan.putExtra(Intents.Scan.SHOW_TORCH_BUTTON, obj.optBoolean(SHOW_TORCH_BUTTON, false));
-                        intentScan.putExtra(Intents.Scan.TORCH_ON, obj.optBoolean(TORCH_ON, false));
-                        intentScan.putExtra(Intents.Scan.SAVE_HISTORY, obj.optBoolean(SAVE_HISTORY, false));
+                        // intentScan.putExtra(Intents.Scan.SHOW_FLIP_CAMERA_BUTTON, obj.optBoolean(SHOW_FLIP_CAMERA_BUTTON, false));
+                        // intentScan.putExtra(Intents.Scan.SHOW_TORCH_BUTTON, obj.optBoolean(SHOW_TORCH_BUTTON, false));
+                        // intentScan.putExtra(Intents.Scan.TORCH_ON, obj.optBoolean(TORCH_ON, false));
+                        // intentScan.putExtra(Intents.Scan.SAVE_HISTORY, obj.optBoolean(SAVE_HISTORY, false));
                         boolean beep = obj.optBoolean(DISABLE_BEEP, false);
-                        intentScan.putExtra(Intents.Scan.BEEP_ON_SCAN, !beep);
+                        // intentScan.putExtra(Intents.Scan.BEEP_ON_SCAN, !beep);
                         if (obj.has(RESULTDISPLAY_DURATION)) {
-                            intentScan.putExtra(Intents.Scan.RESULT_DISPLAY_DURATION_MS, "" + obj.optLong(RESULTDISPLAY_DURATION));
+                            // intentScan.putExtra(Intents.Scan.RESULT_DISPLAY_DURATION_MS, "" + obj.optLong(RESULTDISPLAY_DURATION));
                         }
                         if (obj.has(FORMATS)) {
                             intentScan.putExtra(Intents.Scan.FORMATS, obj.optString(FORMATS));
@@ -211,7 +225,7 @@ public class BarcodeScanner extends CordovaPlugin implements CameraPreview.Barco
                             intentScan.putExtra(Intents.Scan.PROMPT_MESSAGE, obj.optString(PROMPT));
                         }
                         if (obj.has(ORIENTATION)) {
-                            intentScan.putExtra(Intents.Scan.ORIENTATION_LOCK, obj.optString(ORIENTATION));
+                            // intentScan.putExtra(Intents.Scan.ORIENTATION_LOCK, obj.optString(ORIENTATION));
                         }
                     }
 
@@ -227,26 +241,65 @@ public class BarcodeScanner extends CordovaPlugin implements CameraPreview.Barco
 
     public void startCameraScan(CallbackContext callback) {
         this.startCameraCallback = callback;
-        FrameLayout containerView = (FrameLayout) cordova.getActivity().findViewById(containerViewId);
+        final float opacity = Float.parseFloat("1");
+        cordova.getActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                FrameLayout containerView = (FrameLayout) cordova.getActivity().findViewById(containerViewId);
+        
+                if(containerView == null){
+                    containerView = new FrameLayout(cordova.getActivity().getApplicationContext());
+                    containerView.setId(containerViewId);
+        
+                    FrameLayout.LayoutParams containerLayoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
+                    cordova.getActivity().addContentView(containerView, containerLayoutParams);
+                }
+                boolean toBack = true;
+                if(toBack){
+                    View view = webView.getView();
+                    ViewParent rootParent = containerView.getParent();
+                    ViewParent currentParent = view.getParent();
 
-        if(containerView == null){
-            containerView = new FrameLayout(cordova.getActivity().getApplicationContext());
-            containerView.setId(containerViewId);
+                    @ColorInt int color = 0x00000000;
 
-            FrameLayout.LayoutParams containerLayoutParams = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
-            cordova.getActivity().addContentView(containerView, containerLayoutParams);
-        }
+                    view.setBackgroundColor(color);
 
-        cameraPreview = new CameraPreview();
-        FragmentManager fragmentManager = cordova.getActivity().getSupportFragmentManager();
-        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-        fragmentTransaction.add(containerView.getId(), cameraPreview);
-        fragmentTransaction.addToBackStack(null);
-        fragmentTransaction.commit();
+                    if(currentParent.getParent() != rootParent){
+                        while(currentParent != null && currentParent.getParent() != rootParent){
+                            currentParent = currentParent.getParent();
+                        }
+
+                        if(currentParent != null){
+                            ((ViewGroup)currentParent).setBackgroundColor(color);
+                            ((ViewGroup)currentParent).bringToFront();
+                        } else {
+                            currentParent = view.getParent();
+                            webViewParent = currentParent;
+                            ((ViewGroup)view).bringToFront();
+                        }
+                    } else {
+                        webViewParent = currentParent;
+                        ((ViewGroup)currentParent).bringToFront();
+                    }
+                } else {
+                    containerView.setAlpha(opacity);
+                    containerView.bringToFront();
+                }
+        
+                cameraPreview = new CameraPreview();
+                cameraPreview.setEventListener(BarcodeScanner.this);
+                FragmentManager fragmentManager = cordova.getActivity().getSupportFragmentManager();
+                FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+                fragmentTransaction.add(containerView.getId(), cameraPreview);
+                fragmentTransaction.addToBackStack(null);
+                fragmentTransaction.commit();
+            }
+        });
     }
 
     @Override
     public void onBarcodeScanned(String barcodeData) {
+        Log.i("Scan Result", barcodeData);
         this.startCameraCallback.success(barcodeData);
     }
 
@@ -297,14 +350,21 @@ public class BarcodeScanner extends CordovaPlugin implements CameraPreview.Barco
      * @param data The data to encode in the bar code.
      */
     public void encode(String type, String data) {
-        Intent intentEncode = new Intent(this.cordova.getActivity().getBaseContext(), EncodeActivity.class);
-        intentEncode.setAction(Intents.Encode.ACTION);
-        intentEncode.putExtra(Intents.Encode.TYPE, type);
-        intentEncode.putExtra(Intents.Encode.DATA, data);
-        // avoid calling other phonegap apps
-        intentEncode.setPackage(this.cordova.getActivity().getApplicationContext().getPackageName());
+        BarcodeEncoder encoder = new BarcodeEncoder();
+        try {
+            String encodedData = encoder.encode(data, BarcodeFormat.valueOf(type), 400, 400).toString();
+            Intent intentEncode = new Intent(this.cordova.getActivity().getBaseContext(), EncodeActivity.class);
+            intentEncode.putExtra("encodedData", encodedData);
 
-        this.cordova.getActivity().startActivity(intentEncode);
+            this.cordova.getActivity().startActivity(intentEncode);
+            intentEncode.setPackage(this.cordova.getActivity().getApplicationContext().getPackageName());
+        } catch (WriterException e) {
+            throw new RuntimeException(e);
+        }
+        // intentEncode.setAction(Intents.Encode.ACTION);
+        // intentEncode.putExtra(Intents.Encode.TYPE, type);
+        // intentEncode.putExtra(Intents.Encode.DATA, data);
+        // avoid calling other phonegap apps
     }
 
     /**
@@ -356,6 +416,9 @@ public class BarcodeScanner extends CordovaPlugin implements CameraPreview.Barco
        {
            case 0:
                scan(this.requestArgs);
+               break;
+            case 1: 
+               startCameraScan(null);
                break;
        }
    }

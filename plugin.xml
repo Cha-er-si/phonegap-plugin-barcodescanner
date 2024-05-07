@@ -27,6 +27,9 @@
   </platform>
   <platform name="android">
     <source-file src="src/android/com/phonegap/plugins/barcodescanner/BarcodeScanner.java" target-dir="src/com/phonegap/plugins/barcodescanner"/>
+    <source-file src="src/android/com/phonegap/plugins/barcodescanner/CameraPreview.java" target-dir="src/com/phonegap/plugins/barcodescanner"/>
+    <source-file src="src/android/com/phonegap/plugins/barcodescanner/EncodeActivity.java" target-dir="src/com/phonegap/plugins/barcodescanner"/>
+    <resource-file src="src/android/com/phonegap/plugins/barcodescanner/activity_camera.xml" target="res/layout/activity_camera.xml" />
     <config-file target="res/xml/config.xml" parent="/*">
       <feature name="BarcodeScanner">
         <param name="android-package" value="com.phonegap.plugins.barcodescanner.BarcodeScanner"/>
@@ -44,6 +47,7 @@
     <framework src="src/android/barcodescanner.gradle" custom="true" type="gradleReference"/>
     <framework src="com.android.support:support-v4:$ANDROID_SUPPORT_V4_VERSION"/>
     <lib-file src="src/android/barcodescanner-release-2.1.5.aar"/>
+    <lib-file src="src/android/zxing-android-embedded-4.3.0.aar"/>
     <preference name="ANDROID_SUPPORT_V4_VERSION" default="27.+"/>
   </platform>
   <platform name="windows">
@@ -60,6 +64,7 @@
     <asset src="src/windows/assets/plugin-barcodeScanner.css" target="css/plugin-barcodeScanner.css"/>
     <hook src="hooks/windows/check-arch.js" type="before_compile"/>
     <hook src="hooks/windows/check-arch.js" type="before_run"/>
+    
   </platform>
   <platform name="browser">
     <config-file target="config.xml" parent="/*">

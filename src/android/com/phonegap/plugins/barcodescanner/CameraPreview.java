@@ -18,31 +18,23 @@ import com.journeyapps.barcodescanner.DecoratedBarcodeView;
 
 import java.util.List;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link CameraPreview#newInstance} factory method to
- * create an instance of this fragment.
- */
 public class CameraPreview extends Fragment {
     public interface BarcodeScanInterface {
         void onBarcodeScanned(String barcodeData);
     }
     private CaptureManager capture;
     private DecoratedBarcodeView barcodeScannerView;
+    private String appResourcePackage;
+
+    private BarcodeScanInterface barcodeScanListener;
+    public void setEventListener(BarcodeScanInterface listener){
+        barcodeScanListener = listener;
+    }
 
 
     public CameraPreview() {
     }
-
-    /**
-     * Use this factory method to create a new instance of
-     * this fragment using the provided parameters.
-     *
-     * @param param1 Parameter 1.
-     * @param param2 Parameter 2.
-     * @return A new instance of fragment CameraPreview.
-     */
-    // TODO: Rename and change types and number of parameters
+    
     public static CameraPreview newInstance() {
         CameraPreview fragment = new CameraPreview();
         return fragment;
@@ -53,27 +45,11 @@ public class CameraPreview extends Fragment {
         super.onCreate(savedInstanceState);
     }
 
-//    private BarcodeCallback callback = new BarcodeCallback() {
-//        @Override
-//        public void barcodeResult(BarcodeResult result) {
-//            if (result.getText() != null) {
-//                barcodeScannerView.pause();  // Pause scanning
-//                handleDecodeInternally(result);  // Handle the scan result
-//            }
-//        }
-//    };
-
-    private void handleDecodeInternally(BarcodeResult result) {
-        // Here you can handle the scan result as needed
-        Log.i("ScanResult", "Scanned code: " + result.getText());
-//        return result.getText();
-        // Optionally, send the result back to the JavaScript part of your Cordova app
-    }
-
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        View rootView = inflater.inflate(R.layout.activity_camera, container, false);
+        appResourcePackage = getActivity().getPackageName();
+        View rootView = inflater.inflate(getResources().getIdentifier("activity_camera", "layout", appResourcePackage), container, false);
         barcodeScannerView = rootView.findViewById(com.google.zxing.client.android.R.id.zxing_barcode_scanner);
         barcodeScannerView.initializeFromIntent(getActivity().getIntent());
         barcodeScannerView.setStatusText("");
@@ -97,11 +73,12 @@ public class CameraPreview extends Fragment {
 
     private void handleBarcodeResult(BarcodeResult result) {
         barcodeScannerView.pause();
+        barcodeScanListener.onBarcodeScanned(result.getText());
 
-        Activity activity = getActivity();
-        if (activity instanceof BarcodeScanInterface) {
-            ((BarcodeScanInterface)activity).onBarcodeScanned(result.getText());
-        }
+        // Activity activity = getActivity();
+        // if (activity instanceof BarcodeScanInterface) {
+        //     ((BarcodeScanInterface)activity).onBarcodeScanned(result.getText());
+        // }
     }
 
     @Override
